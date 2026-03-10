@@ -1,0 +1,4 @@
+#~/.config/containers/systemd/Containerfile.wallpaper
+FROM docker.io/library/alpine:3.20
+ARG USERNAME=nika
+RUN apk update && apk add --no-cache swww imagemagick && mkdir -p /home/${USERNAME}/.cache/swww

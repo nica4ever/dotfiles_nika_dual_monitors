@@ -1,0 +1,27 @@
+[Unit]
+Description=Wallpaper container
+After=graphical-session.target
+Requires=graphical-session.target
+
+[Container]
+Image=localhost/wallpaper
+ContainerName=wallpaper
+Exec=sh /config/wallpaper-loop.sh
+UserNS=keep-id
+PodmanArgs=--security-opt label=disable --pid=host
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=XDG_RUNTIME_DIR=%t
+Environment=HOME=%h
+Volume=%t:%t
+Volume=wallpaper-cache:%h/.cache/swww
+Volume=%h/Pictures/Wallpapers:/wallpapers:ro
+Volume=%h/.config/containers/systemd/wallpaper-loop.sh:/config/wallpaper-loop.sh:ro
+Volume=%h/.config/sway/config:/config/sway-config:ro
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+
+

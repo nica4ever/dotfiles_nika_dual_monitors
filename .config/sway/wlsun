@@ -1,0 +1,2 @@
+#!/bin/bash
+wlsunset -t 4800

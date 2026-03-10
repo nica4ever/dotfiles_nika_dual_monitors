@@ -1,0 +1,151 @@
+#!/bin/bash
+# Link dotfiles to home directory
+
+# Locate dotfiles dir
+DOTDIR=$(find "$HOME" -maxdepth 3 -type d -name "dotfiles" -print -quit)
+
+if [[ -z "$DOTDIR" ]]; then
+    echo "ERROR: dotfiles directory not found"
+    exit 1
+fi
+
+# All dirs needed — single loop instead of repeated mkdir
+dirs=(
+    ~/.config/rofi/shared
+    ~/.config/sway/config.d
+    ~/.config/sway/lock_idle
+    ~/.config/waybar/modules
+    ~/.config/gtk-3.0
+    ~/.config/gtk-4.0
+    ~/.config/foot
+    ~/.config/tmux/plugins/tmux-dotbar
+    ~/.vim/autoload
+    ~/.config/dunst
+    ~/.config/systemd/user/default.target.wants
+    ~/.config/containers/systemd
+    ~/.local/share/fonts
+    ~/Pictures/Wallpapers/sddm
+)
+
+for d in "${dirs[@]}"; do
+    mkdir -p "$d"
+done
+
+# Symlink map: source -> target
+# One array, easy to read, easy to add new links
+links=(
+    ".bashrc|.bashrc"
+    ".vimrc|.vimrc"
+    ".vim/autoload/plug.vim|.vim/autoload/plug.vim"
+    ".tmux.conf|.tmux.conf"
+    ".config/tmux/plugins/tmux-dotbar/dotbar.tmux|.config/tmux/plugins/tmux-dotbar/dotbar.tmux"
+    ".config/gtk-3.0/settings.ini|.config/gtk-3.0/settings.ini"
+    ".config/gtk-4.0/settings.ini|.config/gtk-4.0/settings.ini"
+    ".config/dunst/dunstrc|.config/dunst/dunstrc"
+    ".config/sway/config|.config/sway/config"
+    ".config/sway/config.d/90-swayidle.conf|.config/sway/config.d/90-swayidle.conf"
+    ".config/sway/config.d/90-bar.conf|.config/sway/config.d/90-bar.conf"
+    ".config/sway/lock_idle/lock.sh|.config/sway/lock_idle/lock.sh"
+    ".config/sway/lock_idle/swayidle.conf|.config/sway/lock_idle/swayidle.conf"
+    ".config/sway/lock_idle/swaylock.conf|.config/sway/lock_idle/swaylock.conf"
+    ".config/sway/wlsun|.config/sway/wlsun"
+    ".config/waybar/config|.config/waybar/config"
+    ".config/waybar/launch.sh|.config/waybar/launch.sh"
+    ".config/waybar/modules/powermenu.sh|.config/waybar/modules/powermenu.sh"
+    ".config/waybar/style.css|.config/waybar/style.css"
+    ".config/rofi/config.rasi|.config/rofi/config.rasi"
+    ".config/rofi/tokyonight.rasi|.config/rofi/tokyonight.rasi"
+    ".config/foot/foot.ini|.config/foot/foot.ini"
+    ".config/containers/systemd/wallpaper.container|.config/containers/systemd/wallpaper.container"
+    ".config/containers/systemd/Containerfile.wallpaper|.config/containers/systemd/Containerfile.wallpaper"
+    ".config/containers/systemd/wallpaper-loop.sh|.config/containers/systemd/wallpaper-loop.sh"
+)
+
+# Font
+curl -fL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz | tar xJ -C ~/.local/share/fonts/ && fc-cache -fv
+
+# Copy files — no symlinks, local edits won't touch the repo
+failed=0
+for entry in "${links[@]}"; do
+    src="${DOTDIR}/${entry%%|*}"
+    dst="$HOME/${entry##*|}"
+    if [[ -e "$src" ]]; then
+        cp -f "$src" "$dst"
+    else
+        echo "MISSING: $src"
+        ((failed++))
+    fi
+done
+
+echo "Dotfiles copied! ($failed missing)"
+
+# Podman container for sww wallpaper
+# Gate: only build if Containerfile and quadlet unit both exist at their symlinked paths
+container_file="$HOME/.config/containers/systemd/Containerfile.wallpaper"
+container_unit="$HOME/.config/containers/systemd/wallpaper.container"
+container_script="$HOME/.config/containers/systemd/wallpaper-loop.sh"
+
+if [[ -e "$container_file" && -e "$container_unit" && -e "$container_script" ]]; then
+    if podman build --build-arg USERNAME="$(whoami)" -t localhost/wallpaper -f "$container_file" "$(dirname "$container_file")/" && \
+       systemctl --user daemon-reload && \
+       systemctl --user restart wallpaper; then
+        :
+    else
+        echo "wallpaper container fail"
+    fi
+
+    ln -sf /run/user/1000/systemd/generator/wallpaper.service ~/.config/systemd/user/default.target.wants/wallpaper.service
+    systemctl --user daemon-reload
+else
+    echo "SKIP: wallpaper container — missing prerequisites:"
+    [[ ! -e "$container_file" ]]   && echo "  - $container_file"
+    [[ ! -e "$container_unit" ]]   && echo "  - $container_unit"
+    [[ ! -e "$container_script" ]] && echo "  - $container_script"
+fi
+
+# SDDM theme (requires sudo)
+sddm_theme="/etc/sddm/themes/nika"
+sddm_src="$DOTDIR/sddm/themes/nika"
+sddm_conf="/etc/sddm.conf.d"
+
+if [[ -d "$sddm_src" ]]; then
+    sudo mkdir -p "$sddm_theme" "$sddm_conf"
+    for f in Main.qml theme.conf metadata.desktop angle-down.png; do
+        if [[ -e "$sddm_src/$f" ]]; then
+            sudo cp -f "$sddm_src/$f" "$sddm_theme/$f"
+        else
+            echo "MISSING: $sddm_src/$f"
+        fi
+    done
+    # Wallpaper copy: theme reads wallpaper.png -> user's sddm dir
+    sudo ln -sf "$HOME/Pictures/Wallpapers/sddm/sddm.png" "$sddm_theme/wallpaper.png"
+    # SDDM conf override
+    sudo tee "$sddm_conf/theme.conf" > /dev/null << EOF
+[Theme]
+ThemeDir=/etc/sddm/themes
+Current=nika
+EOF
+
+    # Ensure sddm user can traverse
+    chmod o+rx "$HOME" "$HOME/Pictures" "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Wallpapers/sddm" 2>/dev/null
+    echo "SDDM theme linked!"
+else
+    echo "SDDM theme source not found: $sddm_src"
+fi
+
+    # Cursor theme
+CURSOR_NAME="nika-cursor"
+CURSOR_DIR="$HOME/.local/share/icons/$CURSOR_NAME"
+if [[ ! -d "$CURSOR_DIR" ]]; then
+    mkdir -p "$HOME/.local/share/icons"
+    tar xzf "$DOTDIR/cursors/nika-cursor.tar.gz" -C "$HOME/.local/share/icons/"
+    echo "Cursor theme installed!"
+else
+    echo "Cursor theme already installed."
+fi
+
+# rpm-ostree commands 
+rpm-ostree override remove nano nano-default-editor --install=vim-default-editor
+rpm-ostree install tmux
+
+echo "FINISH XD"
