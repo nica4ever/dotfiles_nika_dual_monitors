@@ -13,5 +13,3 @@ Hello this is my sway atomic config(dual monitors).
 5. It layers tmux to the ostree
 > NOTE
 > This config was made for Fedora Sway Atomic, the script will not work on other systems out of the box
-
-Salut Mihnea
