@@ -2,7 +2,7 @@
 # Link dotfiles to home directory
 
 # Locate dotfiles dir
-DOTDIR=$(find "$HOME" -maxdepth 3 -type d -name "dotfiles_mp" -print -quit)
+DOTDIR=$(find "$HOME" -maxdepth 3 -type d -name "dotfiles_nika_dual_monitors" -print -quit)
 
 if [[ -z "$DOTDIR" ]]; then
     echo "ERROR: dotfiles directory not found"
