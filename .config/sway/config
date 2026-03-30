@@ -1,3 +1,5 @@
+# Replace each setting with what you like
+
     # Logo key. Use Mod1 for Alt.
     set $mod Mod4
     
@@ -26,15 +28,26 @@
     
     # Output configuration
     # Use swaymsg -t get_outputs to set up output config
-#    output HDMI-A-1 mode 1920x1080@60Hz
-#    output HDMI-A-1 position 0,0
-#    output HDMI-A-1 subpixel rgb
-#    output HDMI-A-1 render_bit_depth 10
-    
-#    output DP-1 mode 1920x1080@60Hz
-#    output DP-1 position 0,0
-#    output DP-1 subpixel rgb
-#    output DP-1 render_bit_depth 10
+    output HDMI-A-1 mode 1920x1080@60Hz
+    output HDMI-A-1 scale 1.35
+    output HDMI-A-1 position 0,0
+    output HDMI-A-1 transform 90
+    output HDMI-A-1 subpixel rgb
+    output HDMI-A-1 render_bit_depth 10
+    workspace 1 output HDMI-A-1
+
+    output HDMI-A-2 mode 1920x1080@60Hz
+    output HDMI-A-2 position 800,0
+    output HDMI-A-2 subpixel rgb
+    output HDMI-A-2 render_bit_depth 10
+    workspace 2 output HDMI-A-2
+
+    # Mouse
+    input "SINOWEALTH Game Mouse" {
+    accel_profile "flat"
+    pointer_accel 0.0
+    }
+
 
     # Color temperature
     exec_always ~/.config/sway/wlsun 
