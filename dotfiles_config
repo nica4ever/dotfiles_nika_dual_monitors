@@ -25,6 +25,7 @@ dirs=(
     ~/.config/containers/systemd
     ~/.local/share/fonts
     ~/Pictures/Wallpapers/sddm
+    ~/.cache/swww
 )
 
 for d in "${dirs[@]}"; do
